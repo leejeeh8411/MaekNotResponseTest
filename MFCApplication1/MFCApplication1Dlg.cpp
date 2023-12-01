@@ -21,17 +21,22 @@ UINT ThreadReadIO(LPVOID wParam)
 	while (true) {
 		
 		AxdiReadInportBit(nModule, 0, &dVal);
-		if (main->m_bOldTrgVal != dVal) {
+		if (main->m_bOldTrgVal != (bool)dVal) {
 			if (dVal) {
 				DWORD uValue;
 				AxdiReadInportByte(nModule, 0, &uValue);
 				DWORD DCellNo = uValue >> 0x01;
-				
 				main->m_nCellNo = (int)DCellNo;
-
+				/*main->m_gLog->info(_T("ReadTrg CellNo:{},beforeTrg:{},currentTrg:{}"), 
+					main->m_nCellNo, 
+					main->m_bOldTrgVal,
+					(bool)dVal
+				);*/
+				main->m_gLog->info(_T("ReadTrg CellNo:{}"), main->m_nCellNo);
 				main->m_bEventWriteInkIO = true;
+				main->m_bOldTrgVal = (bool)dVal;
 			}
-			main->m_bOldTrgVal = dVal;
+			main->m_bOldTrgVal = (bool)dVal;
 		}
 
 		Sleep(1);
@@ -48,12 +53,11 @@ UINT ThreadCheckNotResponseAck(LPVOID wParam)
 	while (true) {
 
 		AxdiReadInportBit(nModule, 12, &dVal);
-		if (main->m_bOldTrgVal != dVal) {
-			if (dVal) {
-				main->m_gLog->info(_T("NotResponseAck"));
-			}
-			main->m_bOldTrgVal = dVal;
+		
+		if (dVal) {
+			main->m_gLog->info(_T("NotResponseAck"));
 		}
+
 		Sleep(1);
 	}
 }
@@ -63,10 +67,10 @@ UINT ThreadCheckNotResponseAck(LPVOID wParam)
 UINT ThreadWriteInkIO(LPVOID wParam)
 {
 	CMFCApplication1Dlg* main = (CMFCApplication1Dlg*)wParam;
-
+	const int delayTime = 130;
 	while (true) {
-		if (main->m_bEventWriteInkIO){
-			Sleep(30);
+		if (main->m_bEventWriteInkIO) {
+			Sleep(delayTime);
 			main->WriteInkIO(main->m_nCellNo, true, false);
 			main->m_bEventWriteInkIO = false;
 		}
@@ -173,8 +177,11 @@ BOOL CMFCApplication1Dlg::OnInitDialog()
 
 	if (bInitBoard) {
 		std::thread thread_readIO(ThreadReadIO, this);
+		thread_readIO.detach();
 		std::thread thread_checkNotAck(ThreadCheckNotResponseAck, this);
+		thread_checkNotAck.detach();
 		std::thread thread_writeInkIO(ThreadWriteInkIO, this);
+		thread_writeInkIO.detach();
 	}
 
 	return TRUE;  // 포커스를 컨트롤에 설정하지 않으면 TRUE를 반환합니다.
