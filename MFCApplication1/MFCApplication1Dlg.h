@@ -8,6 +8,7 @@
 #include "AXL.h"
 #include <gLogger.h>
 #include <memory>
+#include <queue>
 
 #pragma comment(lib, "AXTLIB.lib")
 #pragma comment(lib, "AXL.lib")
@@ -25,6 +26,9 @@ public:
 	bool	m_bEventWriteInkIO = false;
 	void	WriteInkIO(int cellNo, bool bNgNotch, bool bNgSurface);
 	std::shared_ptr<gLogger> m_gLog;
+
+	std::mutex m_mutex;
+	std::queue<int> m_queue;
 
 // 대화 상자 데이터입니다.
 #ifdef AFX_DESIGN_TIME

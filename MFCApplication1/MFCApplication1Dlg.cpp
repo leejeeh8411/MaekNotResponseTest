@@ -32,6 +32,9 @@ UINT ThreadReadIO(LPVOID wParam)
 					main->m_bOldTrgVal,
 					(bool)dVal
 				);*/
+				main->m_mutex.lock();
+				main->m_queue.emplace((int)DCellNo);
+				main->m_mutex.unlock();
 				main->m_gLog->info(_T("ReadTrg CellNo:{}"), main->m_nCellNo);
 				main->m_bEventWriteInkIO = true;
 				main->m_bOldTrgVal = (bool)dVal;
@@ -67,11 +70,21 @@ UINT ThreadCheckNotResponseAck(LPVOID wParam)
 UINT ThreadWriteInkIO(LPVOID wParam)
 {
 	CMFCApplication1Dlg* main = (CMFCApplication1Dlg*)wParam;
-	const int delayTime = 130;
+	const int delayTime = 160;
 	while (true) {
 		if (main->m_bEventWriteInkIO) {
 			Sleep(delayTime);
-			main->WriteInkIO(main->m_nCellNo, true, false);
+			main->m_mutex.lock();
+			int cellNo = (int)main->m_queue.front();
+			main->m_queue.pop();
+			if (main->m_queue.size() > 15) {
+				while (!main->m_queue.empty()) {
+					main->m_queue.pop();
+					main->m_gLog->info(_T("pop CellNo:{}"));
+				}
+			}
+			main->m_mutex.unlock();
+			main->WriteInkIO(cellNo, true, false);
 			main->m_bEventWriteInkIO = false;
 		}
 		Sleep(1);
